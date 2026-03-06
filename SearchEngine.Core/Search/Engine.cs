@@ -59,7 +59,11 @@ namespace SearchEngine.Core.Search {
                 _initialized = true;
             }
 
-            doc.Id = Guid.NewGuid();
+            if (_options.UseOwnIds && doc.Id == Guid.Empty) {
+                throw new ArgumentException("Document must have an Id when UseOwnIds is true.");
+            } else {
+                doc.Id = Guid.NewGuid();
+            }
 
             doc.Tokenize(_stopwords);
 
