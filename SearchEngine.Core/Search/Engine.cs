@@ -163,10 +163,11 @@ namespace SearchEngine.Core.Search {
 
             return new SearchStatus {
                 IsRunning = _isRunning,
+                IsInitialized = _initialized,
                 StartetAt = _startedAt,
-                TotalDocuments = _docs.Count,
-                TotalTokens = _tokens.Count,
-                TotalNGrams = _nGramIndex.Count
+                TotalDocuments = _docs is null ? 0 : _docs.Count,
+                TotalTokens = _tokens is null ? 0 : _tokens.Count,
+                TotalNGrams = _nGramIndex is null ? 0 : _nGramIndex.Count
             };
         }
     }
