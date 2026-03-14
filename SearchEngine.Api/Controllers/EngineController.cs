@@ -9,20 +9,26 @@ namespace SearchEngine.Api.Controllers {
     [Route("engine")]
     public class EngineController : ControllerBase {
         private readonly Engine _searchEngine;
+        private readonly ILogger<EngineController> _logger;
 
-        public EngineController(Engine searchEngine) {
-            _searchEngine = searchEngine; 
+        public EngineController(Engine searchEngine, ILogger<EngineController> logger) {
+            _searchEngine = searchEngine;
+            _logger = logger;
         }
 
         [HttpPost("init")]
         public IActionResult Add([FromBody] IndexOptions options) {
             _searchEngine.Initialize(options);
-            return Ok(new { status = "options changed" });
+
+        _logger.LogInformation("Search engine initialized with options: {options}", options.UseOwnIds);
+
+            return Ok(new { status = "options changed" });  
         }
 
         [HttpGet("status")]
         public ActionResult<StatusDto> GetStatus() {
-            return _searchEngine.GetStatus().ToDto();
+        _logger.LogInformation("Status called");
+        return _searchEngine.GetStatus().ToDto();
         }
     }
 }

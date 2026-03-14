@@ -10,8 +10,11 @@ namespace SearchEngine.Api.Controllers {
     public class DocumentsController : ControllerBase {
         private readonly Engine _searchEngine;
 
-        public DocumentsController(Engine searchEngine) {
-            _searchEngine = searchEngine; 
+        private readonly ILogger<DocumentsController> _logger;
+
+        public DocumentsController(Engine searchEngine, ILogger<DocumentsController> logger) {
+            _searchEngine = searchEngine;
+            _logger = logger;
         }
 
         [HttpPost("add")]
@@ -20,6 +23,8 @@ namespace SearchEngine.Api.Controllers {
             watch.Start();
             var doc =_searchEngine.AddDocument(document.ToEngineModel());
             watch.Stop();
+
+            _logger.LogInformation("Document {Id} '{Title}' indexed in {Ms}ms", doc.Id, doc.Title, watch.ElapsedMilliseconds);
 
             var response = new DocumentResponseDto {
                 Status = "Successfully added",
@@ -43,6 +48,8 @@ namespace SearchEngine.Api.Controllers {
             }
             watch.Stop();
 
+            _logger.LogInformation("Bulk indexed {Count} documents in {Ms}ms", dtos.Count, watch.ElapsedMilliseconds);
+
             var response = new DocumentResponseDto {
                 Status = "Successfully added",
                 TotalAdded = dtos.Count,
@@ -56,6 +63,7 @@ namespace SearchEngine.Api.Controllers {
         [HttpPut("update/{id:Guid}")]
         public IActionResult Update(Guid id, [FromBody] DocumentRequestDto doc) {
             _searchEngine.UpdateDocument(id, doc.ToEngineModel());
+            _logger.LogInformation("Document {Id} updated", id);
             return Ok();
         }
 
@@ -63,6 +71,7 @@ namespace SearchEngine.Api.Controllers {
         [HttpDelete("remove/{id:Guid}")]
         public IActionResult Remove(Guid id) {
             _searchEngine.RemoveDocument(id);
+            _logger.LogInformation("Document {Id} removed", id);
             return Ok();
         }       
     }

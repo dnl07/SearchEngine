@@ -5,18 +5,23 @@ namespace SearchEngine.Api.Controllers {
     [ApiController]
     [Route("health")]
     public class HealthController : ControllerBase {
-        private Engine _searchEngine;
+        private readonly Engine _searchEngine;
+        private readonly ILogger<HealthController> _logger;
 
-        public HealthController(Engine searchEngine) {
-            _searchEngine = searchEngine; 
+        public HealthController(Engine searchEngine, ILogger<HealthController> logger) {
+            _searchEngine = searchEngine;
+            _logger = logger;
         }
 
         [HttpGet]
         public IActionResult GetHealth() {
-            if (_searchEngine.GetStatus().IsRunning) {
-                return Ok();
-            }
-            return NotFound();
+        _logger.LogInformation("Health called");
+        if (_searchEngine.GetStatus().IsRunning) {
+            _logger.LogInformation("Engine is running");
+            return Ok();
+        }
+        _logger.LogWarning("Engine is not running");
+        return NotFound();
         }
     }
 }
