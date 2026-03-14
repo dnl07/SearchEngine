@@ -6,6 +6,7 @@ using SearchEngine.Core.Options;
 using SearchEngine.Core.Ranking;
 using SearchEngine.Models.Scoring;
 using SearchEngine.Models.Search;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SearchEngine.Core.Search {
     public class Engine {
@@ -59,9 +60,17 @@ namespace SearchEngine.Core.Search {
                 _initialized = true;
             }
 
-            if (_options.UseOwnIds && doc.Id == Guid.Empty) {
-                throw new ArgumentException("Document must have an Id when UseOwnIds is true.");
-            } else {
+            if (_options.UseOwnIds) {
+                if (doc.Id == Guid.Empty) {
+                    throw new ArgumentException("Document must have an Id when UseOwnIds is true.");
+                }
+
+                if (_docs.Get(doc.Id) is not null) {
+                    throw new ArgumentException($"Document with id {doc.Id} already exists.");
+                }
+            }
+
+            if (!_options.UseOwnIds) {
                 doc.Id = Guid.NewGuid();
             }
 
