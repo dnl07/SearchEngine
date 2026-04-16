@@ -17,7 +17,7 @@ namespace SearchEngine.Api.Controllers {
             _logger = logger;
         }
 
-        [HttpPost("add")]
+        [HttpPost("")]
         public ActionResult<DocumentResponseDto> Add([FromBody] DocumentRequestDto document) {
             var watch = new Stopwatch();
             watch.Start();
@@ -30,7 +30,7 @@ namespace SearchEngine.Api.Controllers {
                 Status = "Successfully added",
                 TotalAdded = 1,
                 TookMs = watch.ElapsedMilliseconds,
-                AddedDocuments = [doc.ToDto()]
+                AddedDocuments = new[] { doc.ToDto() }
             };
 
             return Ok(response);
@@ -60,15 +60,14 @@ namespace SearchEngine.Api.Controllers {
             return Ok(response);
         }
 
-        [HttpPut("update/{id:Guid}")]
-        public IActionResult Update(Guid id, [FromBody] DocumentRequestDto doc) {
-            _searchEngine.UpdateDocument(id, doc.ToEngineModel());
+        [HttpPatch("{id:Guid}")]
+        public IActionResult Update(Guid id, [FromBody] DocumentPatchRequestDto doc) {
+            _searchEngine.UpdateDocument(id, doc.ToEngineModel(id));
             _logger.LogInformation("Document {Id} updated", id);
             return Ok();
         }
 
- 
-        [HttpDelete("remove/{id:Guid}")]
+        [HttpDelete("{id:Guid}")]
         public IActionResult Remove(Guid id) {
             _searchEngine.RemoveDocument(id);
             _logger.LogInformation("Document {Id} removed", id);

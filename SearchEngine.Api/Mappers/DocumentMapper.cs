@@ -12,6 +12,16 @@ namespace SearchEngine.Api.Mappers.Document {
                 Metadata = request.Metadata
             };
         }
+        public static SearchDocument ToEngineModel(this DocumentPatchRequestDto request, Guid id) {
+            return new SearchDocument {
+                Id = id,
+                Title = request.Title,
+                Description = request.Description,
+                Tags = request.Tags,
+                Metadata = request.Metadata
+            };
+        }
+
         public static DocumentDto ToDto(this SearchDocument doc) {
             return new DocumentDto {
                 Id = doc.Id,
