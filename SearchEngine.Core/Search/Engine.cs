@@ -34,9 +34,7 @@ namespace SearchEngine.Core.Search {
         }
 
         public void Initialize(IndexOptions options) {
-            if (_initialized) {
-                throw new InvalidOperationException("SearchEngine is already initialized.");
-            }
+            if (_initialized) return;
 
             _options = options;
             _nGramIndex = new NGramIndex(_options.NGramSize);

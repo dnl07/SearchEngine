@@ -12,7 +12,8 @@ namespace SearchEngine.Api.Mappers.Search {
                     Fields = new SearchFieldDto {
                         Title = hit.Document.Title,
                         Description = hit.Document.Description,
-                        Tags = hit.Document.Tags
+                        Tags = hit.Document.Tags,
+                        Metadata = hit.Document.Metadata
                     },
                 };
                 if (hit.Explain is not null) {

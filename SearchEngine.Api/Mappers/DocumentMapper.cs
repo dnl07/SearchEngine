@@ -8,13 +8,15 @@ namespace SearchEngine.Api.Mappers.Document {
                 Id = request.Id,
                 Title = request.Title,
                 Description = request.Description,
-                Tags = request.Tags
+                Tags = request.Tags,
+                Metadata = request.Metadata
             };
         }
         public static DocumentDto ToDto(this SearchDocument doc) {
             return new DocumentDto {
                 Id = doc.Id,
-                Title = doc.Title
+                Title = doc.Title,
+                Metadata = doc.Metadata
             };
         }
     }
