@@ -1,23 +1,31 @@
-﻿using SearchEngine.Core.Documents;
+﻿using System.Diagnostics;
+using System.Text.Json;
+using SearchEngine.Core.Documents;
 using SearchEngine.Core.Fuzzy;
 using SearchEngine.Core.Indexing;
 using SearchEngine.Core.Options;
 using SearchEngine.Core.Ranking;
-using System.Diagnostics;
-using System.Text.Json;
 
-namespace SearchEngine.Tests.CoreTests {
-    public static class TestHelper {
-        public async static Task<SearchDocument[]> GetDocumentsFromJson(string filename) {
+namespace SearchEngine.Tests.CoreTests
+{
+    public static class TestHelper
+    {
+        public static async Task<SearchDocument[]> GetDocumentsFromJson(string filename)
+        {
             var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, filename);
             var json = await File.ReadAllTextAsync(path);
-            var data = JsonSerializer.Deserialize<SearchDocument[]>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true});
+            var data = JsonSerializer.Deserialize<SearchDocument[]>(
+                json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+            );
             return data ?? [];
         }
-        public static TestContext CreateFromDocs(SearchDocument[] docs) {
+
+        public static TestContext CreateFromDocs(SearchDocument[] docs)
+        {
             // Options
-            var indexOptions = new IndexOptions { NGramSize = 3};
-            var queryOptions = new QueryOptions {  MaxEditDistance = 2};
+            var indexOptions = new IndexOptions { NGramSize = 3 };
+            var queryOptions = new QueryOptions { MaxEditDistance = 2 };
 
             // Registries
             var tokenRegistry = new TokenRegistry();
@@ -33,7 +41,8 @@ namespace SearchEngine.Tests.CoreTests {
             // Fuzzy
             var matcher = new FuzzyMatcher(nGramIndex, indexOptions);
 
-            foreach (var doc in docs) {
+            foreach (var doc in docs)
+            {
                 doc.Id = Guid.NewGuid();
 
                 doc.Tokenize();
@@ -43,16 +52,19 @@ namespace SearchEngine.Tests.CoreTests {
 
                 var allTokens = doc.AllTokens;
 
-                foreach (string token in allTokens) {
+                foreach (string token in allTokens)
+                {
                     var id = tokenRegistry.Add(token);
 
-                    if (id != -1) {
+                    if (id != -1)
+                    {
                         nGramIndex.AddToken(token, id);
                     }
                 }
             }
 
-            return new TestContext {
+            return new TestContext
+            {
                 TokenRegistry = tokenRegistry,
                 NGramIndex = nGramIndex,
                 InvertedIndex = invertedIndex,
@@ -60,13 +72,13 @@ namespace SearchEngine.Tests.CoreTests {
                 IndexOptions = indexOptions,
                 QueryOptions = queryOptions,
                 FuzzyMatcher = matcher,
-                ScoringEngine = scoringEngine
+                ScoringEngine = scoringEngine,
             };
-
         }
     }
 
-    public class TestContext {
+    public class TestContext
+    {
         public TokenRegistry TokenRegistry { get; init; } = null!;
         public NGramIndex NGramIndex { get; init; } = null!;
         public InvertedIndex InvertedIndex { get; init; } = null!;

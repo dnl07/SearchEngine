@@ -1,10 +1,13 @@
-﻿using Xunit;
-using SearchEngine.Core.Ranking;
+﻿using SearchEngine.Core.Ranking;
+using Xunit;
 
-namespace SearchEngine.Tests.CoreTests.Ranking {
-    public class BM25Tests {
+namespace SearchEngine.Tests.CoreTests.Ranking
+{
+    public class BM25Tests
+    {
         [Fact]
-        public void ComputeScore_ReturnsExpectedValue() {
+        public void ComputeScore_ReturnsExpectedValue()
+        {
             int tf = 3;
             int df = 10;
             int n = 100;
@@ -23,15 +26,25 @@ namespace SearchEngine.Tests.CoreTests.Ranking {
         }
 
         [Fact]
-        public void ComputeScore_TfZero_ReturnsZero() {
+        public void ComputeScore_TfZero_ReturnsZero()
+        {
             int tf = 0;
-            double score = BM25.ComputeScore(tf, df: 10, n: 100, dl: 100, avdl: 100, k: 1.2, b: 0.75);
+            double score = BM25.ComputeScore(
+                tf,
+                df: 10,
+                n: 100,
+                dl: 100,
+                avdl: 100,
+                k: 1.2,
+                b: 0.75
+            );
 
             Assert.Equal(0, score, 6);
         }
 
         [Fact]
-        public void ComputeScore_HigherK_IncreasesScore() {
+        public void ComputeScore_HigherK_IncreasesScore()
+        {
             int tf = 2;
             int df = 5;
             int n = 100;
@@ -45,8 +58,17 @@ namespace SearchEngine.Tests.CoreTests.Ranking {
         }
 
         [Fact]
-        public void ComputeScore_BetweenZeroAndInfinity() {
-            double score = BM25.ComputeScore(tf: 5, df: 10, n: 100, dl: 90, avdl: 100, k: 1.2, b: 0.75);
+        public void ComputeScore_BetweenZeroAndInfinity()
+        {
+            double score = BM25.ComputeScore(
+                tf: 5,
+                df: 10,
+                n: 100,
+                dl: 90,
+                avdl: 100,
+                k: 1.2,
+                b: 0.75
+            );
 
             Assert.True(score > 0);
             Assert.True(double.IsFinite(score));

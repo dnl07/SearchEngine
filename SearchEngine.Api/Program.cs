@@ -3,9 +3,10 @@ using SearchEngine.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services
-    .AddControllers()
-    .AddJsonOptions(options => {
+builder
+    .Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
         options.JsonSerializerOptions.DictionaryKeyPolicy = null;
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -14,13 +15,15 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.WebHost.ConfigureKestrel(options => {
+builder.WebHost.ConfigureKestrel(options =>
+{
     options.Limits.MaxRequestBodySize = 100_000_000;
 });
 
 builder.Services.AddSingleton<SearchEngineCore>();
 
-builder.Services.AddSingleton(sp => {
+builder.Services.AddSingleton(sp =>
+{
     var core = sp.GetRequiredService<SearchEngineCore>();
     return core.SearchEngine;
 });

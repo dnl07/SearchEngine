@@ -1,5 +1,7 @@
-﻿namespace SearchEngine.Api.Dto.Documents {
-    public class DocumentPatchRequestDto {
+﻿namespace SearchEngine.Api.Dto.Documents
+{
+    public class DocumentPatchRequestDto
+    {
         public string Title { get; set; } = "";
         public string Description { get; set; } = "";
         public string[] Tags { get; set; } = [];

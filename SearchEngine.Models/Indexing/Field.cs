@@ -1,7 +1,9 @@
-namespace SearchEngine.Models.Indexing {
-    public enum Field {
+namespace SearchEngine.Models.Indexing
+{
+    public enum Field
+    {
         Title,
         Description,
-        Tags
+        Tags,
     }
 }

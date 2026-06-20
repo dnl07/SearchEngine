@@ -1,15 +1,19 @@
 using SearchEngine.Core.Documents;
 using Xunit;
 
-namespace SearchEngine.Tests.CoreTests {
-    public class DocumentUtilsTests {
+namespace SearchEngine.Tests.CoreTests
+{
+    public class DocumentUtilsTests
+    {
         [Fact]
-        public void Tokenize_Document_ReturnsExpectedTokens() {
-            var doc = new SearchDocument {
+        public void Tokenize_Document_ReturnsExpectedTokens()
+        {
+            var doc = new SearchDocument
+            {
                 Id = Guid.NewGuid(),
                 Title = "Title example",
                 Description = "Description",
-                Tags = ["string", "document", "example"]
+                Tags = ["string", "document", "example"],
             };
 
             doc.Tokenize();

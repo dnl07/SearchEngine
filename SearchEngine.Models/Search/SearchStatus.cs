@@ -1,5 +1,7 @@
-namespace SearchEngine.Models.Search {
-    public class SearchStatus {
+namespace SearchEngine.Models.Search
+{
+    public class SearchStatus
+    {
         public bool IsRunning { get; set; } = false;
         public bool IsInitialized { get; set; } = false;
         public DateTime StartetAt { get; set; } = DateTime.Now;

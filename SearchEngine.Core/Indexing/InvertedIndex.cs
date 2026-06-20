@@ -1,39 +1,50 @@
 using SearchEngine.Core.Documents;
 using SearchEngine.Models.Indexing;
 
-namespace SearchEngine.Core.Indexing {
-    public class InvertedIndex {
+namespace SearchEngine.Core.Indexing
+{
+    public class InvertedIndex
+    {
         private readonly Dictionary<string, TokenPosting> _invertedIndex = new();
 
         public int Count => _invertedIndex.Count;
 
-        public void AddDocument(SearchDocument doc) {
+        public void AddDocument(SearchDocument doc)
+        {
             AddTokens(doc, Field.Title);
             AddTokens(doc, Field.Description);
             AddTokens(doc, Field.Tags);
         }
 
-        public void RemoveDocument(SearchDocument doc) {
+        public void RemoveDocument(SearchDocument doc)
+        {
             RemoveTokens(doc, Field.Title);
             RemoveTokens(doc, Field.Description);
-            RemoveTokens(doc, Field.Tags);         
+            RemoveTokens(doc, Field.Tags);
         }
 
-        private void AddTokens(SearchDocument doc, Field field) {
+        private void AddTokens(SearchDocument doc, Field field)
+        {
             var localCounts = new Dictionary<string, int>();
 
-            foreach (string token in doc.GetFieldTokens(field)) {
-                if (!localCounts.TryGetValue(token, out var count)) {
+            foreach (string token in doc.GetFieldTokens(field))
+            {
+                if (!localCounts.TryGetValue(token, out var count))
+                {
                     localCounts[token] = 1;
-                } else {
+                }
+                else
+                {
                     localCounts[token] = count + 1;
                 }
             }
 
             short fieldOrdinal = FieldOrdinal.FieldToOrdinal(field);
 
-            foreach (var (token, freq) in localCounts) {
-                if (!_invertedIndex.TryGetValue(token, out var posting)) {
+            foreach (var (token, freq) in localCounts)
+            {
+                if (!_invertedIndex.TryGetValue(token, out var posting))
+                {
                     posting = new TokenPosting();
                     _invertedIndex[token] = posting;
                 }
@@ -41,16 +52,19 @@ namespace SearchEngine.Core.Indexing {
                 posting.DocIds.Add(doc.Id);
                 posting.Fields.Add(fieldOrdinal);
                 posting.Frequencies.Add(freq);
-            } 
+            }
         }
 
-        private void RemoveTokens(SearchDocument doc, Field field) {
+        private void RemoveTokens(SearchDocument doc, Field field)
+        {
             var tokens = doc.GetFieldTokens(field);
 
             short f = FieldOrdinal.FieldToOrdinal(field);
 
-            foreach (var token in tokens) {
-                if (!_invertedIndex.TryGetValue(token, out var posting)) {
+            foreach (var token in tokens)
+            {
+                if (!_invertedIndex.TryGetValue(token, out var posting))
+                {
                     continue;
                 }
 
@@ -58,8 +72,10 @@ namespace SearchEngine.Core.Indexing {
                 var fields = posting.Fields;
                 var freqs = posting.Frequencies;
 
-                for (int i = docs.Count - 1; i >= 0; i--) {
-                    if (docs[i] == doc.Id && fields[i] == f) {
+                for (int i = docs.Count - 1; i >= 0; i--)
+                {
+                    if (docs[i] == doc.Id && fields[i] == f)
+                    {
                         var last = docs.Count - 1;
 
                         docs[i] = docs[last];
@@ -72,14 +88,17 @@ namespace SearchEngine.Core.Indexing {
                     }
                 }
 
-                if (posting.DocIds.Count == 0) {
-                _invertedIndex.Remove(token);
+                if (posting.DocIds.Count == 0)
+                {
+                    _invertedIndex.Remove(token);
                 }
             }
-        } 
+        }
 
-        public TokenPosting? GetTokenPosting(string token) {
-            if (_invertedIndex.TryGetValue(token, out var posting)) {
+        public TokenPosting? GetTokenPosting(string token)
+        {
+            if (_invertedIndex.TryGetValue(token, out var posting))
+            {
                 return posting;
             }
             return null;

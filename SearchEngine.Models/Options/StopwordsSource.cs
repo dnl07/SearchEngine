@@ -1,5 +1,6 @@
-public enum StopwordsSource {
+public enum StopwordsSource
+{
     Default,
     Custom,
-    DefaultAndCustom
+    DefaultAndCustom,
 }
