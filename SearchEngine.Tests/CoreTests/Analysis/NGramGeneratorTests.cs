@@ -1,43 +1,30 @@
 using SearchEngine.Core.Analysis;
-using Xunit;
 
-namespace SearchEngine.Tests.CoreTests
+namespace SearchEngine.Tests.CoreTests.Analysis
 {
     public class NGramGeneratorTests
     {
-        [Theory]
-        [InlineData("", 0, new string[] { })]
-        [InlineData("", 1, new string[] { })]
-        [InlineData("gram", 1, new[] { "g", "r", "a", "m" })]
-        [InlineData("gram", 2, new[] { "$g", "gr", "ra", "am", "m$" })]
-        [InlineData("gram", 3, new[] { "$$g", "$gr", "gra", "ram", "am$", "m$$" })]
-        [InlineData(
-            "generate",
-            4,
-            new[]
-            {
-                "$$$g",
-                "$$ge",
-                "$gen",
-                "gene",
-                "ener",
-                "nera",
-                "erat",
-                "rate",
-                "ate$",
-                "te$$",
-                "e$$$",
-            }
-        )]
-        public void Generate_VariousNGrams_ReturnsExpectedNGrams(
-            string token,
-            int nGramSize,
-            IEnumerable<string> expected
-        )
+        [Fact]
+        public void Padded_ReturnsNGramsWithEdgesOnBothSides()
         {
-            var nGrams = NGramGenerator.Generate(token, nGramSize);
+            Assert.Equal(
+                new[] { "$$j", "$je", "jea", "ean", "ans", "ns$", "s$$" },
+                NGramGenerator.Padded("jeans", 3)
+            );
+        }
 
-            Assert.Equal(expected, nGrams);
+        [Fact]
+        public void PrefixPadded_ReturnsNGramsWithEdgeAtTheStart()
+        {
+            Assert.Equal(new[] { "$$j", "$je" }, NGramGenerator.PrefixPadded("je", 3));
+        }
+
+        [Theory]
+        [InlineData("jacket", new[] { "jac", "ack", "cke", "ket" })]
+        [InlineData("je", new string[] { })]
+        public void Unpadded_ReturnsInnerNGrams(string token, string[] expected)
+        {
+            Assert.Equal(expected, NGramGenerator.Unpadded(token, 3));
         }
     }
 }
