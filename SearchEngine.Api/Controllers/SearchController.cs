@@ -1,73 +1,61 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SearchEngine.Api.Dto.Search;
-using SearchEngine.Api.Mappers.Options;
 using SearchEngine.Api.Mappers.Search;
-using SearchEngine.Core.Search;
-using SearchEngine.Models.Search;
+using SearchEngine.Core.Indexes;
 
 namespace SearchEngine.Api.Controllers
 {
     [ApiController]
-    [Route("search")]
     public class SearchController : ControllerBase
     {
-        private readonly Engine _searchEngine;
+        private readonly IndexRegistry _registry;
         private readonly ILogger<SearchController> _logger;
 
-        public SearchController(Engine searchEngine, ILogger<SearchController> logger)
+        public SearchController(IndexRegistry registry, ILogger<SearchController> logger)
         {
-            _searchEngine = searchEngine;
+            _registry = registry;
             _logger = logger;
         }
 
-        [HttpGet]
+        [HttpPost("indexes/{index}/search")]
         public ActionResult<SearchResponseDto> Search(
-            [FromQuery] string query,
-            [FromQuery] int? limit,
-            [FromQuery] bool explain = false
+            string index,
+            [FromBody] SearchRequestDto request
         )
         {
-            _logger.LogInformation(
-                "Search called with query: {Query}, limit: {Limit}, explain: {Explain}",
-                query,
-                limit,
-                explain
-            );
-            var watch = new Stopwatch();
-            watch.Start();
-            SearchResult searchResult = _searchEngine.Search(
-                query,
-                explain,
-                new QueryOptionsDto() { Limit = limit ?? 10 }.ToEngineModel()
-            );
+            var searchIndex = _registry.Get(index);
+            var watch = Stopwatch.StartNew();
+            var result = searchIndex.Search(request.Query, request.Limit, request.Explain);
             watch.Stop();
 
-            var searchResponse = searchResult.ToDto();
-            searchResponse.ElapsedTime = watch.ElapsedMilliseconds;
+            _logger.LogDebug(
+                "Search for '{Query}' in {Index} found {Total} documents in {Ms}ms",
+                request.Query,
+                index,
+                result.Total,
+                watch.ElapsedMilliseconds
+            );
 
-            _logger.LogInformation("Search completed in {ElapsedMs}ms", watch.ElapsedMilliseconds);
-            return Ok(searchResponse);
+            return result.ToDto(watch.ElapsedMilliseconds);
         }
 
-        [HttpPost]
-        public ActionResult<SearchResponseDto> Search([FromBody] SearchRequestDto request)
+        [HttpPost("multi-search")]
+        public ActionResult<MultiSearchResponseDto> MultiSearch(
+            [FromBody] MultiSearchRequestDto request
+        )
         {
-            _logger.LogInformation("Search called with query: {Query}", request.Query);
-            var watch = new Stopwatch();
-            watch.Start();
-            SearchResult searchResult = _searchEngine.Search(
-                request.Query,
-                request.Options.Explain,
-                request.Options.ToEngineModel()
+            var watch = Stopwatch.StartNew();
+            var results = _registry.MultiSearch(
+                (request.Queries ?? []).Select(query => query.ToModel()).ToList()
             );
             watch.Stop();
 
-            var searchResponse = searchResult.ToDto();
-            searchResponse.ElapsedTime = watch.ElapsedMilliseconds;
-
-            _logger.LogInformation("Search completed in {ElapsedMs}ms", watch.ElapsedMilliseconds);
-            return Ok(searchResponse);
+            return new MultiSearchResponseDto
+            {
+                Results = results.Select(result => result.ToDto()).ToArray(),
+                TookMs = watch.ElapsedMilliseconds,
+            };
         }
     }
 }

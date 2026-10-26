@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
-using SearchEngine.Core;
+using SearchEngine.Api.Middleware;
+using SearchEngine.Core.Indexes;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,30 +16,25 @@ builder
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<SearchEngineExceptionHandler>();
+
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 100_000_000;
 });
 
-builder.Services.AddSingleton<SearchEngineCore>();
-
-builder.Services.AddSingleton(sp =>
-{
-    var core = sp.GetRequiredService<SearchEngineCore>();
-    return core.SearchEngine;
-});
+builder.Services.AddSingleton<IndexRegistry>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
 
 app.MapControllers();
 

@@ -1,107 +1,88 @@
 using SearchEngine.Core.Documents;
-using SearchEngine.Models.Indexing;
 
 namespace SearchEngine.Core.Indexing
 {
     public class InvertedIndex
     {
-        private readonly Dictionary<string, TokenPosting> _invertedIndex = new();
+        private readonly Dictionary<string, TokenPosting> _postings = new(StringComparer.Ordinal);
+        private readonly int _fieldCount;
 
-        public int Count => _invertedIndex.Count;
-
-        public void AddDocument(SearchDocument doc)
+        public InvertedIndex(int fieldCount)
         {
-            AddTokens(doc, Field.Title);
-            AddTokens(doc, Field.Description);
-            AddTokens(doc, Field.Tags);
+            _fieldCount = fieldCount;
         }
 
-        public void RemoveDocument(SearchDocument doc)
+        public int Count => _postings.Count;
+
+        public bool Contains(string token) => _postings.ContainsKey(token);
+
+        public TokenPosting? Get(string token) => _postings.GetValueOrDefault(token);
+
+        /// <returns>The tokens that were not part of the index before.</returns>
+        public List<string> AddDocument(IndexedDocument doc)
         {
-            RemoveTokens(doc, Field.Title);
-            RemoveTokens(doc, Field.Description);
-            RemoveTokens(doc, Field.Tags);
-        }
+            var newTokens = new List<string>();
 
-        private void AddTokens(SearchDocument doc, Field field)
-        {
-            var localCounts = new Dictionary<string, int>();
-
-            foreach (string token in doc.GetFieldTokens(field))
+            for (int field = 0; field < _fieldCount; field++)
             {
-                if (!localCounts.TryGetValue(token, out var count))
+                foreach (var group in doc.Tokens[field].GroupBy(token => token))
                 {
-                    localCounts[token] = 1;
-                }
-                else
-                {
-                    localCounts[token] = count + 1;
-                }
-            }
-
-            short fieldOrdinal = FieldOrdinal.FieldToOrdinal(field);
-
-            foreach (var (token, freq) in localCounts)
-            {
-                if (!_invertedIndex.TryGetValue(token, out var posting))
-                {
-                    posting = new TokenPosting();
-                    _invertedIndex[token] = posting;
-                }
-
-                posting.DocIds.Add(doc.Id);
-                posting.Fields.Add(fieldOrdinal);
-                posting.Frequencies.Add(freq);
-            }
-        }
-
-        private void RemoveTokens(SearchDocument doc, Field field)
-        {
-            var tokens = doc.GetFieldTokens(field);
-
-            short f = FieldOrdinal.FieldToOrdinal(field);
-
-            foreach (var token in tokens)
-            {
-                if (!_invertedIndex.TryGetValue(token, out var posting))
-                {
-                    continue;
-                }
-
-                var docs = posting.DocIds;
-                var fields = posting.Fields;
-                var freqs = posting.Frequencies;
-
-                for (int i = docs.Count - 1; i >= 0; i--)
-                {
-                    if (docs[i] == doc.Id && fields[i] == f)
+                    if (!_postings.TryGetValue(group.Key, out var posting))
                     {
-                        var last = docs.Count - 1;
+                        posting = new TokenPosting(_fieldCount);
+                        _postings[group.Key] = posting;
+                        newTokens.Add(group.Key);
+                    }
 
-                        docs[i] = docs[last];
-                        fields[i] = fields[last];
-                        freqs[i] = freqs[last];
+                    var docs = posting.Fields[field] ??= new(StringComparer.Ordinal);
+                    docs[doc.Id] = group.Count();
+                }
+            }
 
-                        docs.RemoveAt(last);
-                        fields.RemoveAt(last);
-                        freqs.RemoveAt(last);
+            foreach (var token in doc.Tokens.SelectMany(tokens => tokens).Distinct())
+            {
+                _postings[token].DocumentCount++;
+            }
+
+            return newTokens;
+        }
+
+        /// <returns>The tokens that are no longer part of the index.</returns>
+        public List<string> RemoveDocument(IndexedDocument doc)
+        {
+            var removedTokens = new List<string>();
+
+            foreach (var token in doc.Tokens.SelectMany(tokens => tokens).Distinct())
+            {
+                if (_postings.TryGetValue(token, out var posting))
+                {
+                    posting.DocumentCount--;
+                }
+            }
+
+            for (int field = 0; field < _fieldCount; field++)
+            {
+                foreach (var token in doc.Tokens[field].Distinct())
+                {
+                    if (!_postings.TryGetValue(token, out var posting))
+                        continue;
+
+                    var docs = posting.Fields[field];
+
+                    if (docs is null || !docs.Remove(doc.Id) || docs.Count > 0)
+                        continue;
+
+                    posting.Fields[field] = null;
+
+                    if (posting.IsEmpty)
+                    {
+                        _postings.Remove(token);
+                        removedTokens.Add(token);
                     }
                 }
-
-                if (posting.DocIds.Count == 0)
-                {
-                    _invertedIndex.Remove(token);
-                }
             }
-        }
 
-        public TokenPosting? GetTokenPosting(string token)
-        {
-            if (_invertedIndex.TryGetValue(token, out var posting))
-            {
-                return posting;
-            }
-            return null;
+            return removedTokens;
         }
     }
 }

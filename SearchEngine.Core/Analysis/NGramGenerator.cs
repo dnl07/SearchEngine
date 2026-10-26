@@ -2,35 +2,38 @@ namespace SearchEngine.Core.Analysis
 {
     public static class NGramGenerator
     {
+        private const char Edge = '$';
+
         /// <summary>
-        /// Generates a list of n-grams for a given token.
+        /// N-grams of the token padded on both sides: "jeans" -> ["$$j", "$je", "jea", ..., "s$$"].
         /// </summary>
-        public static string[] Generate(
-            string token,
-            int nGramSize,
-            bool prefixEditDistance = false
-        )
+        public static string[] Padded(string token, int size)
         {
-            if (string.IsNullOrWhiteSpace(token))
+            var edge = new string(Edge, size - 1);
+            return Slice($"{edge}{token}{edge}", size);
+        }
+
+        /// <summary>
+        /// N-grams of the token padded at the start only, used to find tokens with the token as prefix.
+        /// </summary>
+        public static string[] PrefixPadded(string token, int size) =>
+            Slice($"{new string(Edge, size - 1)}{token}", size);
+
+        public static string[] Unpadded(string token, int size) => Slice(token, size);
+
+        private static string[] Slice(string text, int size)
+        {
+            if (text.Length < size)
                 return [];
 
-            // Creates edge symbols used for padding to find proper candidates
-            string edgeSymbols = string.Join("", Enumerable.Repeat("$", nGramSize - 1));
-            var paddedToken = prefixEditDistance
-                ? $"{edgeSymbols}{token}"
-                : $"{edgeSymbols}{token}{edgeSymbols}";
+            var nGrams = new string[text.Length - size + 1];
 
-            List<string> nGrams = new List<string>(paddedToken.Length - nGramSize + 1);
-
-            ReadOnlySpan<char> span = paddedToken.AsSpan();
-
-            // "nGram" -> ["$n", ""nG", "Gr", "ra", "am", "m$"] with size = 2
-            for (int i = 0; i < span.Length - nGramSize + 1; i++)
+            for (int i = 0; i < nGrams.Length; i++)
             {
-                nGrams.Add(span.Slice(i, nGramSize).ToString());
+                nGrams[i] = text.Substring(i, size);
             }
 
-            return nGrams.ToArray();
+            return nGrams;
         }
     }
 }

@@ -6,73 +6,61 @@ namespace SearchEngine.Core.Analysis
     public static class Normalizer
     {
         /// <summary>
-        /// Normalizes a token by trimming surrounding punctuation, converting to
-        /// lower-case and removing diacritics.
+        /// Lower-cases a word, removes diacritics and splits it at every inner character.
         /// </summary>
-        public static string Normalize(ReadOnlySpan<char> token)
+        public static List<string> SplitParts(string word)
         {
-            if (token.IsEmpty)
-                return string.Empty;
+            var parts = new List<string>();
+            var current = new StringBuilder(word.Length);
 
-            int start = 0;
-            int end = token.Length - 1;
-
-            // Trimming punctuation at the start and end
-            while (start <= end && IsPunctuation(token[start]))
-                start++;
-            while (end >= start && IsPunctuation(token[end]))
-                end--;
-
-            if (start > end)
-                return string.Empty;
-
-            var sb = new StringBuilder(end - start + 1);
-            for (int i = start; i <= end; i++)
+            foreach (char raw in word)
             {
-                char c = char.ToLowerInvariant(token[i]);
+                char c = char.ToLowerInvariant(raw);
+
+                if (c == 'ß')
+                {
+                    current.Append("ss");
+                    continue;
+                }
 
                 c = RemoveDiacritics(c);
 
                 if (char.IsLetterOrDigit(c))
-                    sb.Append(c);
+                {
+                    current.Append(c);
+                }
+                else if (current.Length > 0)
+                {
+                    parts.Add(current.ToString());
+                    current.Clear();
+                }
             }
 
-            if (sb.Length == 0)
-                return string.Empty;
+            if (current.Length > 0)
+            {
+                parts.Add(current.ToString());
+            }
 
-            return sb.ToString();
+            return parts;
         }
 
-        private static bool IsPunctuation(char c) =>
-            c == '.'
-            || c == ','
-            || c == ':'
-            || c == ';'
-            || c == '!'
-            || c == '?'
-            || c == '('
-            || c == ')'
-            || c == '['
-            || c == ']'
-            || c == '{'
-            || c == '}'
-            || c == '"'
-            || c == '\''
-            || c == '�'
-            || c == '-'
-            || c == '_';
+        public static string Normalize(string word) => string.Concat(SplitParts(word));
 
         private static char RemoveDiacritics(char c)
         {
-            var normalizedString = c.ToString().Normalize(NormalizationForm.FormD);
+            if (c < 128)
+                return c;
 
-            foreach (var ch in normalizedString)
+            foreach (char decomposed in c.ToString().Normalize(NormalizationForm.FormD))
             {
-                if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+                if (
+                    CharUnicodeInfo.GetUnicodeCategory(decomposed) != UnicodeCategory.NonSpacingMark
+                )
                 {
-                    return ch;
+                    return decomposed;
                 }
             }
+
             return c;
         }
     }

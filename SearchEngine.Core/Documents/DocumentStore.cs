@@ -1,104 +1,57 @@
-using SearchEngine.Models.Indexing;
-
 namespace SearchEngine.Core.Documents
 {
     public class DocumentStore
     {
-        private readonly Dictionary<Guid, SearchDocument> _docs = new();
-        private readonly Dictionary<Field, long> _totalFieldLengths = new();
-        private readonly Dictionary<Field, int> _docCountsPerField = new();
+        private readonly Dictionary<string, IndexedDocument> _docs = new(StringComparer.Ordinal);
+        private readonly long[] _totalFieldLengths;
+        private readonly int[] _docCountsPerField;
+
+        public DocumentStore(int fieldCount)
+        {
+            _totalFieldLengths = new long[fieldCount];
+            _docCountsPerField = new int[fieldCount];
+        }
 
         public int Count => _docs.Count;
 
-        public DocumentStore()
-        {
-            foreach (Field field in Enum.GetValues(typeof(Field)))
-            {
-                _totalFieldLengths[field] = 0;
-                _docCountsPerField[field] = 0;
-            }
-        }
+        public IndexedDocument? Get(string id) => _docs.GetValueOrDefault(id);
 
-        public SearchDocument? Get(Guid id)
+        public void Add(IndexedDocument doc)
         {
-            if (_docs.TryGetValue(id, out var doc))
-            {
-                return doc;
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Adds a document and updates field statistics.
-        /// </summary>
-        public void Add(SearchDocument doc)
-        {
-            if (_docs.ContainsKey(doc.Id))
-                return;
-
             _docs[doc.Id] = doc;
-            UpdateAllFields(doc);
+            UpdateFieldStatistics(doc, 1);
         }
 
-        public void Remove(Guid id)
+        public IndexedDocument? Remove(string id)
         {
-            var doc = _docs[id];
+            if (!_docs.Remove(id, out var doc))
+                return null;
 
-            RemoveFieldLengths(doc.TitleTokens, Field.Title);
-            RemoveFieldLengths(doc.DescriptionTokens, Field.Description);
-            RemoveFieldLengths(doc.TagsTokens, Field.Tags);
-
-            _docs.Remove(id);
+            UpdateFieldStatistics(doc, -1);
+            return doc;
         }
 
-        private void UpdateAllFields(SearchDocument doc)
-        {
-            void UpdateFieldLengths(string[] tokens, Field field)
-            {
-                if (tokens.Length == 0)
-                    return;
+        public int GetFieldLength(string id, int field) =>
+            _docs.TryGetValue(id, out var doc) ? doc.Tokens[field].Length : 0;
 
-                _totalFieldLengths[field] += tokens.Length;
-                _docCountsPerField[field]++;
-            }
-
-            UpdateFieldLengths(doc.TitleTokens, Field.Title);
-            UpdateFieldLengths(doc.DescriptionTokens, Field.Description);
-            UpdateFieldLengths(doc.TagsTokens, Field.Tags);
-        }
-
-        private void RemoveFieldLengths(string[] tokens, Field field)
-        {
-            if (tokens.Length == 0)
-                return;
-
-            _totalFieldLengths[field] -= tokens.Length;
-            _docCountsPerField[field]--;
-        }
-
-        public int GetFieldLength(Guid id, Field field)
-        {
-            if (!_docs.TryGetValue(id, out var doc))
-                return 0;
-
-            return doc.GetFieldTokens(field).Length;
-        }
-
-        /// <summary>
-        /// Returns the average field length in tokens.
-        /// </summary>
-        public double GetAverageFieldLength(Field field)
+        public double GetAverageFieldLength(int field)
         {
             int docCount = _docCountsPerField[field];
-            if (docCount == 0)
-                return 0;
-
-            return (double)_totalFieldLengths[field] / docCount;
+            return docCount == 0 ? 0 : (double)_totalFieldLengths[field] / docCount;
         }
 
-        public int GetCount(Field field)
+        private void UpdateFieldStatistics(IndexedDocument doc, int sign)
         {
-            return _docCountsPerField[field];
+            for (int field = 0; field < doc.Tokens.Length; field++)
+            {
+                int length = doc.Tokens[field].Length;
+
+                if (length == 0)
+                    continue;
+
+                _totalFieldLengths[field] += sign * length;
+                _docCountsPerField[field] += sign;
+            }
         }
     }
 }

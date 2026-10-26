@@ -2,55 +2,76 @@ namespace SearchEngine.Core.Analysis
 {
     public static class Tokenizer
     {
-        /// <summary>
-        /// Transforms a given text into normalized, by whitespace splitted tokens.
-        /// </summary>
-        public static string[] Tokenize(string text, HashSet<string>? stopWords = null)
+        public static List<string> TokenizeForIndex(string? text, IReadOnlySet<string> stopwords)
         {
-            if (string.IsNullOrWhiteSpace(text))
-                return [];
-
             var tokens = new List<string>();
 
-            ReadOnlySpan<char> span = text.AsSpan();
-            int start = 0;
-            for (int i = 0; i <= span.Length; i++)
+            foreach (var parts in Words(text))
             {
-                if (i == span.Length || char.IsWhiteSpace(span[i]))
+                if (parts.Count > 1)
                 {
-                    if (i > start)
-                    {
-                        var token = ProcessToken(span[start..i], stopWords);
-                        if (!string.IsNullOrWhiteSpace(token))
-                        {
-                            tokens.Add(token);
-                        }
-                    }
-                    start = i + 1;
+                    tokens.AddRange(parts.Where(part => !stopwords.Contains(part)));
+                }
+
+                var joined = string.Concat(parts);
+
+                if (!stopwords.Contains(joined))
+                {
+                    tokens.Add(joined);
                 }
             }
 
-            return tokens.ToArray();
+            return tokens;
         }
 
-        /// <summary>
-        /// Normalizes a token if it is not a stopword.
-        /// </summary>
-        private static string ProcessToken(
-            ReadOnlySpan<char> text,
-            HashSet<string>? stopWords = null
-        )
+        public static List<string> TokenizeQuery(string? text, IReadOnlySet<string> stopwords) =>
+            Words(text)
+                .Select(parts => string.Concat(parts))
+                .Where(term => !stopwords.Contains(term))
+                .Distinct()
+                .ToList();
+
+        private static IEnumerable<List<string>> Words(string? text)
         {
-            var token = Normalizer.Normalize(text);
+            if (string.IsNullOrWhiteSpace(text))
+                yield break;
 
-            if (string.IsNullOrWhiteSpace(token))
-                return "";
+            int start = 0;
 
-            // Remove stopwords
-            if (stopWords != null && stopWords.Contains(token))
-                return "";
+            for (int i = 0; i <= text.Length; i++)
+            {
+                if (i < text.Length && !IsSeparator(text[i]))
+                    continue;
 
-            return token;
+                if (i > start)
+                {
+                    var parts = Normalizer.SplitParts(text[start..i]);
+
+                    if (parts.Count > 0)
+                    {
+                        yield return parts;
+                    }
+                }
+
+                start = i + 1;
+            }
         }
+
+        private static bool IsSeparator(char c) =>
+            char.IsWhiteSpace(c)
+            || c
+                is ','
+                    or ';'
+                    or ':'
+                    or '!'
+                    or '?'
+                    or '('
+                    or ')'
+                    or '['
+                    or ']'
+                    or '{'
+                    or '}'
+                    or '"'
+                    or '|';
     }
 }

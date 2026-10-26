@@ -19,7 +19,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
       - name: Restore dependencies
         run: dotnet restore
@@ -28,4 +28,4 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test SearchEngine.Tests/SearchEngine.Tests.csproj --configuration Release
+        run: dotnet test --project SearchEngine.Tests/SearchEngine.Tests.csproj --configuration Release

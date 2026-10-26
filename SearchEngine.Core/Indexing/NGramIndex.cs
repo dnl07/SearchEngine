@@ -4,70 +4,47 @@ namespace SearchEngine.Core.Indexing
 {
     public class NGramIndex
     {
-        private readonly Dictionary<string, HashSet<int>> _nGramToToken = new();
-        private readonly Dictionary<int, string[]> _tokenToNGram = new();
+        public const int Size = 3;
 
-        private int _nGramSize { get; }
+        private static readonly HashSet<string> NoTokens = new();
 
-        public int Count => _nGramToToken.Count;
+        private readonly Dictionary<string, HashSet<string>> _tokensByNGram = new(
+            StringComparer.Ordinal
+        );
 
-        public NGramIndex(int nGramSize)
+        public int Count => _tokensByNGram.Count;
+
+        public void AddToken(string token)
         {
-            _nGramSize = nGramSize;
-        }
-
-        public void AddToken(string token, int id)
-        {
-            var nGrams = NGramGenerator.Generate(token, _nGramSize);
-
-            _tokenToNGram.TryAdd(id, nGrams.ToArray());
-
-            foreach (var nGram in nGrams)
+            foreach (var nGram in NGramGenerator.Padded(token, Size).Distinct())
             {
-                if (_nGramToToken.TryGetValue(nGram, out var tokenIds))
+                if (!_tokensByNGram.TryGetValue(nGram, out var tokens))
                 {
-                    tokenIds.Add(id);
+                    tokens = new HashSet<string>(StringComparer.Ordinal);
+                    _tokensByNGram[nGram] = tokens;
                 }
-                else
-                {
-                    _nGramToToken[nGram] = [id];
-                }
+
+                tokens.Add(token);
             }
         }
 
-        public void RemoveToken(string token, int id)
+        public void RemoveToken(string token)
         {
-            var nGrams = NGramGenerator.Generate(token, _nGramSize);
-
-            _tokenToNGram.Remove(id);
-
-            foreach (var nGram in nGrams)
+            foreach (var nGram in NGramGenerator.Padded(token, Size).Distinct())
             {
-                if (_nGramToToken.TryGetValue(nGram, out var ids))
+                if (_tokensByNGram.TryGetValue(nGram, out var tokens))
                 {
-                    ids.Remove(id);
-                    if (ids.Count == 0)
-                        _nGramToToken.Remove(nGram);
+                    tokens.Remove(token);
+
+                    if (tokens.Count == 0)
+                    {
+                        _tokensByNGram.Remove(nGram);
+                    }
                 }
             }
         }
 
-        public HashSet<int> GetCandidates(string nGram)
-        {
-            if (_nGramToToken.TryGetValue(nGram, out var candidates))
-            {
-                return candidates ?? [];
-            }
-            return [];
-        }
-
-        public string[] GetNGrams(int tokenId)
-        {
-            if (_tokenToNGram.TryGetValue(tokenId, out var nGrams))
-            {
-                return nGrams;
-            }
-            return [];
-        }
+        public IReadOnlySet<string> GetTokens(string nGram) =>
+            _tokensByNGram.TryGetValue(nGram, out var tokens) ? tokens : NoTokens;
     }
 }

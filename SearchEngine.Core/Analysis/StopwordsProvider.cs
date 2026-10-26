@@ -1,42 +1,49 @@
-using SearchEngine.Core.Options;
+using System.Collections.Concurrent;
+using SearchEngine.Models.Indexes;
 
 namespace SearchEngine.Core.Analysis
 {
     public static class StopwordsProvider
     {
-        public static HashSet<string> Default = Load();
+        public static readonly IReadOnlyList<string> SupportedLanguages = ["de", "en"];
 
-        /// <summary>
-        /// Returns stopwords choosed by the user.
-        /// </summary>
-        public static HashSet<string> ResolveStopwords(IndexOptions options)
+        private static readonly ConcurrentDictionary<string, HashSet<string>> Lists = new();
+
+        public static HashSet<string> Resolve(StopwordSettings settings)
         {
-            return options.StopwordsSource switch
+            var stopwords = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var language in settings.Languages)
             {
-                StopwordsSource.Default => Default,
-                StopwordsSource.Custom => options.StopWords,
-                StopwordsSource.DefaultAndCustom => Default.Union(options.StopWords).ToHashSet(),
-                _ => Default,
-            };
+                stopwords.UnionWith(Lists.GetOrAdd(language, Load));
+            }
+
+            foreach (var word in settings.Exclude)
+            {
+                stopwords.Remove(Normalizer.Normalize(word));
+            }
+
+            return stopwords;
         }
 
-        /// <summary>
-        /// Loads stopwords from a .tsv file.
-        /// </summary>
-        private static HashSet<string> Load()
+        private static HashSet<string> Load(string language)
         {
-            using var stream = typeof(StopwordsProvider).Assembly.GetManifestResourceStream(
-                "SearchEngine.Core.Data.stopwords_en.tsv"
-            );
-
-            if (stream == null)
-                throw new Exception("File containing stopwords not found");
+            using var stream =
+                typeof(StopwordsProvider).Assembly.GetManifestResourceStream(
+                    $"SearchEngine.Core.Data.stopwords_{language}.tsv"
+                )
+                ?? throw new InvalidOperationException(
+                    $"Stopwords for language '{language}' not found."
+                );
 
             using var reader = new StreamReader(stream);
 
-            var tokenized = Tokenizer.Tokenize(reader.ReadToEnd());
-
-            return tokenized.ToHashSet();
+            return reader
+                .ReadToEnd()
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(Normalizer.Normalize)
+                .Where(word => word.Length > 0)
+                .ToHashSet(StringComparer.Ordinal);
         }
     }
 }

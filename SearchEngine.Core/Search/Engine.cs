@@ -1,216 +1,215 @@
-using System.Diagnostics.CodeAnalysis;
-using SearchEngine.Core.Analysis;
 using SearchEngine.Core.Documents;
-using SearchEngine.Core.Fuzzy;
+using SearchEngine.Core.Exceptions;
+using SearchEngine.Core.Indexes;
 using SearchEngine.Core.Indexing;
-using SearchEngine.Core.Options;
+using SearchEngine.Core.Matching;
 using SearchEngine.Core.Ranking;
-using SearchEngine.Models.Scoring;
 using SearchEngine.Models.Search;
 
 namespace SearchEngine.Core.Search
 {
+    /// <summary>
+    /// The data structures of a single index. Not thread-safe, see <see cref="SearchIndex"/>.
+    /// </summary>
     public class Engine
     {
-        private IndexOptions _options = new();
-        private bool _initialized = false;
+        private readonly IndexSchema _schema;
+        private readonly DocumentStore _docs;
+        private readonly InvertedIndex _invertedIndex;
+        private readonly NGramIndex _nGramIndex = new();
+        private readonly CandidateMatcher _matcher;
 
-        private readonly DocumentStore _docs = new();
-        private readonly TokenRegistry _tokens = new();
-
-        private readonly InvertedIndex _invertedIndex = new();
-        private NGramIndex _nGramIndex = null!;
-
-        private FuzzyMatcher _fuzzyMatcher = null!;
-        private QueryExpander _expander = null!;
-        private ScoringEngine _scoring = null!;
-
-        private bool _isRunning = false;
-        private DateTime _startedAt;
-
-        private HashSet<string> _stopwords = new();
-
-        public Engine()
+        public Engine(IndexSchema schema)
         {
-            _isRunning = true;
-            _startedAt = DateTime.Now;
+            _schema = schema;
+            _docs = new DocumentStore(schema.FieldNames.Count);
+            _invertedIndex = new InvertedIndex(schema.FieldNames.Count);
+            _matcher = new CandidateMatcher(_invertedIndex, _nGramIndex);
         }
 
-        public void Initialize(IndexOptions options)
+        public int Count => _docs.Count;
+
+        public void Upsert(IndexedDocument doc)
         {
-            if (_initialized)
-                return;
-
-            _options = options;
-            _nGramIndex = new NGramIndex(_options.NGramSize);
-            _fuzzyMatcher = new FuzzyMatcher(_nGramIndex, _options);
-            _expander = new QueryExpander();
-            _scoring = new ScoringEngine();
-
-            _initialized = true;
-            _stopwords = StopwordsProvider.ResolveStopwords(_options);
-        }
-
-        private void EnsureInitialized()
-        {
-            if (!_initialized)
-            {
-                throw new InvalidOperationException("SearchEngine is not initialized.");
-            }
-        }
-
-        public SearchDocument AddDocument(SearchDocument doc)
-        {
-            if (!_initialized)
-            {
-                Initialize(new IndexOptions());
-                _initialized = true;
-            }
-
-            if (_options.UseOwnIds)
-            {
-                if (doc.Id == Guid.Empty)
-                {
-                    throw new ArgumentException("Document must have an Id when UseOwnIds is true.");
-                }
-
-                if (_docs.Get(doc.Id) is not null)
-                {
-                    throw new ArgumentException($"Document with id {doc.Id} already exists.");
-                }
-            }
-
-            if (!_options.UseOwnIds)
-            {
-                doc.Id = Guid.NewGuid();
-            }
-
-            doc.Tokenize(_stopwords);
+            Remove(doc.Id);
 
             _docs.Add(doc);
-            _invertedIndex.AddDocument(doc);
 
-            var allTokens = doc.AllTokens;
-
-            foreach (string token in allTokens)
+            foreach (var token in _invertedIndex.AddDocument(doc))
             {
-                var id = _tokens.Add(token);
+                _nGramIndex.AddToken(token);
+            }
+        }
 
-                if (id != -1)
+        public bool Remove(string id)
+        {
+            var doc = _docs.Remove(id);
+
+            if (doc is null)
+                return false;
+
+            foreach (var token in _invertedIndex.RemoveDocument(doc))
+            {
+                _nGramIndex.RemoveToken(token);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Returns the documents matching every term of the query. Documents with fewer typos
+        /// come first, then the ones with the higher sum of the best candidate score per term.
+        /// </summary>
+        public SearchResult Search(string? query, int? limit, bool explain)
+        {
+            if (limit < 0)
+                throw new InvalidInputException("The limit must not be negative.");
+
+            Dictionary<string, List<TermScore>>? matches = null;
+
+            foreach (var term in _schema.AnalyzeQuery(query))
+            {
+                var termScores = ScoreTerm(term, matches);
+
+                if (matches is null)
                 {
-                    _nGramIndex.AddToken(token, id);
+                    matches = termScores.ToDictionary(
+                        score => score.Key,
+                        score => new List<TermScore> { score.Value },
+                        StringComparer.Ordinal
+                    );
+                }
+                else
+                {
+                    foreach (var id in matches.Keys.ToList())
+                    {
+                        if (termScores.TryGetValue(id, out var score))
+                        {
+                            matches[id].Add(score);
+                        }
+                        else
+                        {
+                            matches.Remove(id);
+                        }
+                    }
+                }
+
+                if (matches.Count == 0)
+                    break;
+            }
+
+            if (matches is null)
+                return new SearchResult();
+
+            var hits = matches
+                .Select(match => new
+                {
+                    Typos = match.Value.Sum(score => score.Candidate.Typos),
+                    Hit = new SearchHit
+                    {
+                        Id = match.Key,
+                        Score = match.Value.Sum(score => score.Score),
+                        Explain = explain ? match.Value.Select(ToTermMatch).ToList() : null,
+                    },
+                })
+                .OrderBy(match => match.Typos)
+                .ThenByDescending(match => match.Hit.Score)
+                .ThenBy(match => match.Hit.Id, StringComparer.Ordinal)
+                .Take(limit ?? int.MaxValue)
+                .Select(match => match.Hit)
+                .ToList();
+
+            return new SearchResult { Total = matches.Count, Hits = hits };
+        }
+
+        private Dictionary<string, TermScore> ScoreTerm(
+            string term,
+            Dictionary<string, List<TermScore>>? remaining
+        )
+        {
+            var best = new Dictionary<string, TermScore>(StringComparer.Ordinal);
+
+            foreach (var candidate in _matcher.Match(term))
+            {
+                var posting = _invertedIndex.Get(candidate.Token);
+
+                if (posting is null)
+                    continue;
+
+                var fieldScoresByDoc = new Dictionary<string, double[]>(StringComparer.Ordinal);
+                int df = posting.DocumentCount;
+
+                for (int field = 0; field < posting.Fields.Length; field++)
+                {
+                    var docs = posting.Fields[field];
+
+                    if (docs is null)
+                        continue;
+
+                    double avdl = _docs.GetAverageFieldLength(field);
+                    double b = _schema.LengthNormalizations[field];
+
+                    foreach (var (id, tf) in docs)
+                    {
+                        if (remaining is not null && !remaining.ContainsKey(id))
+                            continue;
+
+                        if (!fieldScoresByDoc.TryGetValue(id, out var fieldScores))
+                        {
+                            fieldScores = new double[posting.Fields.Length];
+                            fieldScoresByDoc[id] = fieldScores;
+                        }
+
+                        int dl = _docs.GetFieldLength(id, field);
+                        fieldScores[field] =
+                            _schema.Weights[field]
+                            * BM25.ComputeScore(tf, df, _docs.Count, dl, avdl, b: b);
+                    }
+                }
+
+                foreach (var (id, fieldScores) in fieldScoresByDoc)
+                {
+                    var score = new TermScore(term, candidate, fieldScores);
+
+                    if (!best.TryGetValue(id, out var current) || score.IsBetterThan(current))
+                    {
+                        best[id] = score;
+                    }
                 }
             }
 
-            return doc;
+            return best;
         }
 
-        public void RemoveDocument(Guid docId)
-        {
-            var doc = _docs.Get(docId);
-
-            if (doc == null)
-                return;
-
-            _docs.Remove(doc.Id);
-            _invertedIndex.RemoveDocument(doc);
-
-            foreach (var token in doc.AllTokens)
+        private TermMatch ToTermMatch(TermScore score) =>
+            new()
             {
-                var tokenId = _tokens.GetIdOfToken(token);
-                if (tokenId == -1)
-                    continue;
-
-                if (_invertedIndex.GetTokenPosting(token) != null)
-                    continue;
-
-                _tokens.Remove(token);
-                _nGramIndex.RemoveToken(token, tokenId);
-            }
-        }
-
-        public void UpdateDocument(Guid oldId, SearchDocument newDoc)
-        {
-            RemoveDocument(oldId);
-            AddDocument(newDoc);
-        }
-
-        public SearchResult Search(string request, bool explain, QueryOptions? options = null)
-        {
-            EnsureInitialized();
-
-            options ??= new QueryOptions();
-
-            var result = new SearchResult();
-            result.Query = request;
-
-            // fuzzy string matching
-            var expanded = _expander.Expand(request, _fuzzyMatcher, _tokens, _stopwords, options);
-
-            if (explain)
-            {
-                result.MatchedTokens = expanded.Select(e => e.token).ToList();
-            }
-
-            // creates scores
-            Dictionary<Guid, ScoreResult> scores = _scoring.ScoreDocuments(
-                expanded,
-                _invertedIndex,
-                _docs,
-                options,
-                explain
-            );
-
-            // uses a min-heap to improve search performance
-            var topK = new PriorityQueue<KeyValuePair<Guid, ScoreResult>, double>();
-
-            foreach (var kv in scores)
-            {
-                double score = kv.Value.FinalScore;
-                if (topK.Count < options.MaxDocs)
-                {
-                    topK.Enqueue(kv, score);
-                }
-                else if (score > topK.Peek().Value.FinalScore)
-                {
-                    topK.Dequeue();
-                    topK.Enqueue(kv, score);
-                }
-            }
-
-            var topKHits = topK
-                .UnorderedItems.OrderByDescending(k => k.Priority)
-                .Select(s => s.Element);
-
-            foreach (var (id, scoreResult) in topKHits)
-            {
-                var doc = _docs.Get(id);
-
-                if (doc == null)
-                    continue;
-
-                result.Hits.Add(
-                    new SearchHit { Document = doc, Explain = explain ? scoreResult : null }
-                );
-            }
-
-            return result;
-        }
-
-        public SearchStatus GetStatus(bool onlyRunning = false)
-        {
-            if (onlyRunning)
-                return new SearchStatus { IsRunning = _isRunning };
-
-            return new SearchStatus
-            {
-                IsRunning = _isRunning,
-                IsInitialized = _initialized,
-                StartetAt = _startedAt,
-                TotalDocuments = _docs is null ? 0 : _docs.Count,
-                TotalTokens = _tokens is null ? 0 : _tokens.Count,
-                TotalNGrams = _nGramIndex is null ? 0 : _nGramIndex.Count,
+                Term = score.Term,
+                Token = score.Candidate.Token,
+                Kind = score.Candidate.Kind,
+                Boost = score.Candidate.Boost,
+                Typos = score.Candidate.Typos,
+                Score = score.Score,
+                Fields = score
+                    .FieldScores.Select(
+                        (fieldScore, field) =>
+                            (
+                                Name: _schema.FieldNames[field],
+                                Score: fieldScore * score.Candidate.Boost
+                            )
+                    )
+                    .Where(field => field.Score > 0)
+                    .ToDictionary(field => field.Name, field => field.Score),
             };
+
+        private sealed record TermScore(string Term, Candidate Candidate, double[] FieldScores)
+        {
+            public double Score { get; } = FieldScores.Sum() * Candidate.Boost;
+
+            public bool IsBetterThan(TermScore other) =>
+                Candidate.Typos != other.Candidate.Typos
+                    ? Candidate.Typos < other.Candidate.Typos
+                    : Score > other.Score;
         }
     }
 }
