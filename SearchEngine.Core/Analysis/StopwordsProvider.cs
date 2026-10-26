@@ -9,6 +9,9 @@ namespace SearchEngine.Core.Analysis
 
         private static readonly ConcurrentDictionary<string, HashSet<string>> Lists = new();
 
+        /// <summary>
+        /// Returns the stopwords of the given languages without the excluded words.
+        /// </summary>
         public static HashSet<string> Resolve(StopwordSettings settings)
         {
             var stopwords = new HashSet<string>(StringComparer.Ordinal);
@@ -26,6 +29,9 @@ namespace SearchEngine.Core.Analysis
             return stopwords;
         }
 
+        /// <summary>
+        /// Loads the embedded stopword list of a language.
+        /// </summary>
         private static HashSet<string> Load(string language)
         {
             using var stream =

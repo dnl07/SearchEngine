@@ -2,13 +2,16 @@ namespace SearchEngine.Core.Matching
 {
     public static class EditDistance
     {
+        /// <summary>
+        /// Returns the Damerau-Levenshtein distance of the two tokens, where swapping two
+        /// neighbouring letters counts as one edit.
+        /// </summary>
         public static int Calculate(string t1, string t2) =>
             Calculate(t1, t2, Math.Max(t1.Length, t2.Length));
 
         /// <summary>
-        /// Damerau-Levenshtein distance of two tokens, so swapping two
-        /// neighbouring letters counts as one edit. Stops early and returns maxDistance + 1 as soon
-        /// as the distance is known to exceed maxDistance.
+        /// Returns the Damerau-Levenshtein distance of the two tokens, or maxDistance + 1 as soon
+        /// as it is known to exceed maxDistance.
         /// </summary>
         public static int Calculate(string t1, string t2, int maxDistance)
         {

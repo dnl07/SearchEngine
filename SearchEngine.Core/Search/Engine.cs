@@ -29,6 +29,9 @@ namespace SearchEngine.Core.Search
 
         public int Count => _docs.Count;
 
+        /// <summary>
+        /// Adds the document or replaces the one with the same id.
+        /// </summary>
         public void Upsert(IndexedDocument doc)
         {
             Remove(doc.Id);
@@ -41,6 +44,9 @@ namespace SearchEngine.Core.Search
             }
         }
 
+        /// <summary>
+        /// Removes the document and returns whether it existed.
+        /// </summary>
         public bool Remove(string id)
         {
             var doc = _docs.Remove(id);
@@ -57,8 +63,8 @@ namespace SearchEngine.Core.Search
         }
 
         /// <summary>
-        /// Returns the documents matching every term of the query. Documents with fewer typos
-        /// come first, then the ones with the higher sum of the best candidate score per term.
+        /// Returns the documents matching every query term, ranked by fewest typos and then by
+        /// highest score.
         /// </summary>
         public SearchResult Search(string? query, int? limit, bool explain)
         {
@@ -122,6 +128,10 @@ namespace SearchEngine.Core.Search
             return new SearchResult { Total = matches.Count, Hits = hits };
         }
 
+        /// <summary>
+        /// Scores every remaining document that matches the term and keeps the best candidate per
+        /// document.
+        /// </summary>
         private Dictionary<string, TermScore> ScoreTerm(
             string term,
             Dictionary<string, List<TermScore>>? remaining
@@ -181,6 +191,9 @@ namespace SearchEngine.Core.Search
             return best;
         }
 
+        /// <summary>
+        /// Builds the explanation of how a term matched a document.
+        /// </summary>
         private TermMatch ToTermMatch(TermScore score) =>
             new()
             {
@@ -206,6 +219,9 @@ namespace SearchEngine.Core.Search
         {
             public double Score { get; } = FieldScores.Sum() * Candidate.Boost;
 
+            /// <summary>
+            /// Returns whether this score has fewer typos or, with equal typos, a higher score.
+            /// </summary>
             public bool IsBetterThan(TermScore other) =>
                 Candidate.Typos != other.Candidate.Typos
                     ? Candidate.Typos < other.Candidate.Typos

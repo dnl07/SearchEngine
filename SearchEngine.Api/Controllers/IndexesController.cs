@@ -19,6 +19,9 @@ namespace SearchEngine.Api.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Creates the index or updates its settings, which empties it if they changed.
+        /// </summary>
         [HttpPut("{index}")]
         public ActionResult<IndexInfoDto> CreateOrUpdate(
             string index,
@@ -35,9 +38,15 @@ namespace SearchEngine.Api.Controllers
                 : Ok(info);
         }
 
+        /// <summary>
+        /// Returns the settings and document count of the index.
+        /// </summary>
         [HttpGet("{index}")]
         public ActionResult<IndexInfoDto> Get(string index) => _registry.Get(index).ToDto();
 
+        /// <summary>
+        /// Deletes the index with all its documents.
+        /// </summary>
         [HttpDelete("{index}")]
         public IActionResult Delete(string index)
         {

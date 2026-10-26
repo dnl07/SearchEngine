@@ -5,7 +5,8 @@ namespace SearchEngine.Core.Analysis
         private const char Edge = '$';
 
         /// <summary>
-        /// N-grams of the token padded on both sides: "jeans" -> ["$$j", "$je", "jea", ..., "s$$"].
+        /// Returns the n-grams of the token padded on both sides, so every letter appears in the
+        /// same number of n-grams.
         /// </summary>
         public static string[] Padded(string token, int size)
         {
@@ -14,13 +15,20 @@ namespace SearchEngine.Core.Analysis
         }
 
         /// <summary>
-        /// N-grams of the token padded at the start only, used to find tokens with the token as prefix.
+        /// Returns the n-grams of the token padded at the start only, to find tokens that begin
+        /// with it.
         /// </summary>
         public static string[] PrefixPadded(string token, int size) =>
             Slice($"{new string(Edge, size - 1)}{token}", size);
 
+        /// <summary>
+        /// Returns the n-grams of the token without padding, to find tokens that contain it.
+        /// </summary>
         public static string[] Unpadded(string token, int size) => Slice(token, size);
 
+        /// <summary>
+        /// Cuts the text into all overlapping substrings of the given size.
+        /// </summary>
         private static string[] Slice(string text, int size)
         {
             if (text.Length < size)

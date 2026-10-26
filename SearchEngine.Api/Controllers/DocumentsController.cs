@@ -19,6 +19,9 @@ namespace SearchEngine.Api.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Replaces all documents of the index with the given ones.
+        /// </summary>
         [HttpPut]
         public ActionResult<DocumentsWrittenDto> Replace(
             string index,
@@ -45,6 +48,9 @@ namespace SearchEngine.Api.Controllers
             };
         }
 
+        /// <summary>
+        /// Adds the given documents to the index or replaces those with the same id.
+        /// </summary>
         [HttpPost]
         public ActionResult<DocumentsWrittenDto> Upsert(
             string index,
@@ -71,6 +77,9 @@ namespace SearchEngine.Api.Controllers
             };
         }
 
+        /// <summary>
+        /// Removes the document from the index and succeeds even if it does not exist.
+        /// </summary>
         [HttpDelete("{id}")]
         public IActionResult Remove(string index, string id)
         {

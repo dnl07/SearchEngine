@@ -32,6 +32,9 @@ namespace SearchEngine.Core.Indexes
         public IReadOnlyList<double> LengthNormalizations { get; }
         public IReadOnlySet<string> Stopwords => _stopwords;
 
+        /// <summary>
+        /// Validates and normalizes the settings and creates the schema from them.
+        /// </summary>
         public static IndexSchema Create(IndexSettings settings)
         {
             var fields = settings.Fields;
@@ -77,6 +80,10 @@ namespace SearchEngine.Core.Indexes
             return new IndexSchema(normalized, StopwordsProvider.Resolve(normalized.Stopwords));
         }
 
+        /// <summary>
+        /// Throws if there is no field or a field has an empty or duplicate name, an invalid weight
+        /// or an invalid length normalization.
+        /// </summary>
         private static void ValidateFields(List<FieldSettings> fields)
         {
             if (fields.Count == 0)
@@ -106,6 +113,9 @@ namespace SearchEngine.Core.Indexes
                 throw new InvalidInputException($"Field '{duplicate.Key}' is declared twice.");
         }
 
+        /// <summary>
+        /// Tokenizes every field of the document and throws for unknown fields.
+        /// </summary>
         public IndexedDocument Analyze(SearchDocument doc)
         {
             if (string.IsNullOrWhiteSpace(doc.Id))
@@ -129,9 +139,15 @@ namespace SearchEngine.Core.Indexes
             return new IndexedDocument(doc.Id, tokens);
         }
 
+        /// <summary>
+        /// Splits the query into terms using the stopwords of this index.
+        /// </summary>
         public List<string> AnalyzeQuery(string? query) =>
             Tokenizer.TokenizeQuery(query, _stopwords);
 
+        /// <summary>
+        /// Returns whether both schemas index and rank documents the same way.
+        /// </summary>
         public bool IsEquivalentTo(IndexSchema other) =>
             FieldNames.SequenceEqual(other.FieldNames)
             && Weights.SequenceEqual(other.Weights)

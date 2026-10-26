@@ -14,6 +14,9 @@ namespace SearchEngine.Core.Indexing
 
         public int Count => _tokensByNGram.Count;
 
+        /// <summary>
+        /// Registers the token under each of its n-grams.
+        /// </summary>
         public void AddToken(string token)
         {
             foreach (var nGram in NGramGenerator.Padded(token, Size).Distinct())
@@ -28,6 +31,9 @@ namespace SearchEngine.Core.Indexing
             }
         }
 
+        /// <summary>
+        /// Removes the token from each of its n-grams and drops n-grams without tokens.
+        /// </summary>
         public void RemoveToken(string token)
         {
             foreach (var nGram in NGramGenerator.Padded(token, Size).Distinct())
@@ -44,6 +50,9 @@ namespace SearchEngine.Core.Indexing
             }
         }
 
+        /// <summary>
+        /// Returns the tokens that contain the n-gram.
+        /// </summary>
         public IReadOnlySet<string> GetTokens(string nGram) =>
             _tokensByNGram.TryGetValue(nGram, out var tokens) ? tokens : NoTokens;
     }

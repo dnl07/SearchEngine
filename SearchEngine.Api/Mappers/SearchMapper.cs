@@ -5,6 +5,9 @@ namespace SearchEngine.Api.Mappers.Search
 {
     public static class SearchMapper
     {
+        /// <summary>
+        /// Maps one query of a multi search to the model.
+        /// </summary>
         public static IndexQuery ToModel(this MultiSearchQueryDto dto) =>
             new()
             {
@@ -14,6 +17,9 @@ namespace SearchEngine.Api.Mappers.Search
                 Explain = dto.Explain,
             };
 
+        /// <summary>
+        /// Maps a search result to the response, including how long the search took.
+        /// </summary>
         public static SearchResponseDto ToDto(this SearchResult result, long tookMs) =>
             new()
             {
@@ -22,6 +28,9 @@ namespace SearchEngine.Api.Mappers.Search
                 TookMs = tookMs,
             };
 
+        /// <summary>
+        /// Maps the result of one multi search query to the response.
+        /// </summary>
         public static IndexSearchResultDto ToDto(this IndexSearchResult result) =>
             new()
             {
@@ -30,6 +39,9 @@ namespace SearchEngine.Api.Mappers.Search
                 Hits = result.Result.Hits.Select(ToDto).ToArray(),
             };
 
+        /// <summary>
+        /// Maps a hit and its explanation to the response.
+        /// </summary>
         private static SearchHitDto ToDto(SearchHit hit) =>
             new()
             {

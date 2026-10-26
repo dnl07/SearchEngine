@@ -6,6 +6,9 @@ namespace SearchEngine.Api.Mappers.Documents
 {
     public static class DocumentMapper
     {
+        /// <summary>
+        /// Maps the request documents to models and rejects null entries.
+        /// </summary>
         public static List<SearchDocument> ToModels(this DocumentDto[] dtos) =>
             dtos.Select(dto =>
                     dto is null

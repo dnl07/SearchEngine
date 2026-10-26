@@ -14,11 +14,19 @@ namespace SearchEngine.Core.Indexing
 
         public int Count => _postings.Count;
 
+        /// <summary>
+        /// Returns whether the token occurs in any document.
+        /// </summary>
         public bool Contains(string token) => _postings.ContainsKey(token);
 
+        /// <summary>
+        /// Returns the posting of the token, or null.
+        /// </summary>
         public TokenPosting? Get(string token) => _postings.GetValueOrDefault(token);
 
-        /// <returns>The tokens that were not part of the index before.</returns>
+        /// <summary>
+        /// Adds the tokens of the document and returns those that were not in the index before.
+        /// </summary>
         public List<string> AddDocument(IndexedDocument doc)
         {
             var newTokens = new List<string>();
@@ -47,7 +55,10 @@ namespace SearchEngine.Core.Indexing
             return newTokens;
         }
 
-        /// <returns>The tokens that are no longer part of the index.</returns>
+        /// <summary>
+        /// Removes the tokens of the document and returns those that no longer occur in any
+        /// document.
+        /// </summary>
         public List<string> RemoveDocument(IndexedDocument doc)
         {
             var removedTokens = new List<string>();

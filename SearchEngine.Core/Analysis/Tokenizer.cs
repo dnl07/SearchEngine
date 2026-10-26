@@ -2,6 +2,10 @@ namespace SearchEngine.Core.Analysis
 {
     public static class Tokenizer
     {
+        /// <summary>
+        /// Splits the text into the tokens to index: every word joined, plus its parts if it has
+        /// several, without stopwords.
+        /// </summary>
         public static List<string> TokenizeForIndex(string? text, IReadOnlySet<string> stopwords)
         {
             var tokens = new List<string>();
@@ -24,6 +28,10 @@ namespace SearchEngine.Core.Analysis
             return tokens;
         }
 
+        /// <summary>
+        /// Splits the query into distinct terms, joining the parts of each word and dropping
+        /// stopwords.
+        /// </summary>
         public static List<string> TokenizeQuery(string? text, IReadOnlySet<string> stopwords) =>
             Words(text)
                 .Select(parts => string.Concat(parts))
@@ -31,6 +39,9 @@ namespace SearchEngine.Core.Analysis
                 .Distinct()
                 .ToList();
 
+        /// <summary>
+        /// Splits the text at separators and returns the normalized parts of each word.
+        /// </summary>
         private static IEnumerable<List<string>> Words(string? text)
         {
             if (string.IsNullOrWhiteSpace(text))
@@ -57,6 +68,9 @@ namespace SearchEngine.Core.Analysis
             }
         }
 
+        /// <summary>
+        /// Returns whether the character separates two words.
+        /// </summary>
         private static bool IsSeparator(char c) =>
             char.IsWhiteSpace(c)
             || c

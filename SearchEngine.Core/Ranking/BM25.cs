@@ -6,19 +6,16 @@ namespace SearchEngine.Core.Ranking
         public const double DefaultB = 0.75;
 
         /// <summary>
-        /// Inverse document frequency as used by Lucene. Always positive, even for tokens
-        /// contained in every document.
+        /// Returns the inverse document frequency as Lucene computes it, which stays positive even
+        /// for tokens in every document.
         /// </summary>
         public static double Idf(int df, int n) => Math.Log(1 + (n - df + 0.5) / (df + 0.5));
 
         /// <summary>
-        /// Computes the BM25 for a given posting.
+        /// Computes the BM25 score of a term from its frequency in the field (tf), the number of
+        /// documents containing it (df), the document count (n) and the field length (dl) compared
+        /// to the average (avdl).
         /// </summary>
-        /// <param name="tf">Term frequency.</param>
-        /// <param name="df">Number of documents containing the term.</param>
-        /// <param name="n">The count of all documents.</param>
-        /// <param name="dl">The length of a given document.</param>
-        /// <param name="avdl">The average document length of all documents.</param>
         public static double ComputeScore(
             int tf,
             int df,

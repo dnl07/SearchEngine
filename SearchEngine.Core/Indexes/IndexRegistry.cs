@@ -12,6 +12,9 @@ namespace SearchEngine.Core.Indexes
             StringComparer.Ordinal
         );
 
+        /// <summary>
+        /// Creates the index or applies the new settings to the existing one.
+        /// </summary>
         public (SearchIndex Index, IndexChange Change) CreateOrUpdate(
             string name,
             IndexSettings settings
@@ -41,15 +44,21 @@ namespace SearchEngine.Core.Indexes
             }
         }
 
+        /// <summary>
+        /// Returns the index or throws <see cref="IndexNotFoundException"/>.
+        /// </summary>
         public SearchIndex Get(string name) =>
             _indexes.TryGetValue(name, out var index)
                 ? index
                 : throw new IndexNotFoundException(name);
 
+        /// <summary>
+        /// Deletes the index and returns whether it existed.
+        /// </summary>
         public bool Delete(string name) => _indexes.TryRemove(name, out _);
 
         /// <summary>
-        /// Runs every query against its index. Fails before searching if any index is missing.
+        /// Runs every query against its index and fails before searching if any index is missing.
         /// </summary>
         public List<IndexSearchResult> MultiSearch(IReadOnlyList<IndexQuery> queries)
         {
@@ -67,6 +76,9 @@ namespace SearchEngine.Core.Indexes
                 .ToList();
         }
 
+        /// <summary>
+        /// Matches 1 to 64 lower-case letters, digits, '-' or '_', starting with a letter or digit.
+        /// </summary>
         [GeneratedRegex("^[a-z0-9][a-z0-9_-]{0,63}$")]
         private static partial Regex IndexName();
     }

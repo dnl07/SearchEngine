@@ -12,6 +12,10 @@ namespace SearchEngine.Api.Middleware
             _problemDetails = problemDetails;
         }
 
+        /// <summary>
+        /// Writes 404 or 400 problem details for the engine's own exceptions and leaves all others
+        /// to the default handler.
+        /// </summary>
         public async ValueTask<bool> TryHandleAsync(
             HttpContext context,
             Exception exception,

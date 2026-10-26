@@ -6,6 +6,9 @@ namespace SearchEngine.Api.Mappers.Indexes
 {
     public static class IndexMapper
     {
+        /// <summary>
+        /// Maps the request settings to the model and replaces missing values with empty defaults.
+        /// </summary>
         public static IndexSettings ToModel(this IndexSettingsDto dto) =>
             new()
             {
@@ -24,6 +27,9 @@ namespace SearchEngine.Api.Mappers.Indexes
                 },
             };
 
+        /// <summary>
+        /// Maps the index to its settings and document count.
+        /// </summary>
         public static IndexInfoDto ToDto(this SearchIndex index)
         {
             var settings = index.Settings;

@@ -18,6 +18,9 @@ namespace SearchEngine.Api.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Searches the index and returns the ranked hits.
+        /// </summary>
         [HttpPost("indexes/{index}/search")]
         public ActionResult<SearchResponseDto> Search(
             string index,
@@ -40,6 +43,9 @@ namespace SearchEngine.Api.Controllers
             return result.ToDto(watch.ElapsedMilliseconds);
         }
 
+        /// <summary>
+        /// Runs several searches, each against its own index, in one request.
+        /// </summary>
         [HttpPost("multi-search")]
         public ActionResult<MultiSearchResponseDto> MultiSearch(
             [FromBody] MultiSearchRequestDto request

@@ -6,7 +6,8 @@ namespace SearchEngine.Core.Analysis
     public static class Normalizer
     {
         /// <summary>
-        /// Lower-cases a word, removes diacritics and splits it at every inner character.
+        /// Lower-cases the word, removes diacritics, replaces ß with ss and splits it at every
+        /// character that is not a letter or digit.
         /// </summary>
         public static List<string> SplitParts(string word)
         {
@@ -44,8 +45,15 @@ namespace SearchEngine.Core.Analysis
             return parts;
         }
 
+        /// <summary>
+        /// Returns the word normalized like <see cref="SplitParts"/>, without the separating
+        /// characters.
+        /// </summary>
         public static string Normalize(string word) => string.Concat(SplitParts(word));
 
+        /// <summary>
+        /// Returns the base letter of a character with diacritics, or the character itself.
+        /// </summary>
         private static char RemoveDiacritics(char c)
         {
             if (c < 128)

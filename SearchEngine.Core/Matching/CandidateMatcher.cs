@@ -24,6 +24,9 @@ namespace SearchEngine.Core.Matching
             _nGramIndex = nGramIndex;
         }
 
+        /// <summary>
+        /// Returns how many typos a term of this length may have.
+        /// </summary>
         public static int MaxEditDistance(int termLength) =>
             termLength switch
             {
@@ -33,8 +36,7 @@ namespace SearchEngine.Core.Matching
             };
 
         /// <summary>
-        /// Finds all indexed tokens a query term can stand for. Every token is returned once,
-        /// with the strongest way it matches.
+        /// Finds all indexed tokens the term can stand for, each with the strongest way it matches.
         /// </summary>
         public IReadOnlyCollection<Candidate> Match(string term)
         {
@@ -77,6 +79,10 @@ namespace SearchEngine.Core.Matching
             return candidates.Values;
         }
 
+        /// <summary>
+        /// Returns the tokens within the allowed number of typos, filtered by shared n-grams before
+        /// the edit distance is computed.
+        /// </summary>
         private IEnumerable<Candidate> FuzzyCandidates(string term)
         {
             int maxDistance = MaxEditDistance(term.Length);
@@ -115,6 +121,9 @@ namespace SearchEngine.Core.Matching
             }
         }
 
+        /// <summary>
+        /// Returns the tokens that contain all of the n-grams.
+        /// </summary>
         private IEnumerable<string> TokensWithAll(string[] nGrams)
         {
             var sets = nGrams
@@ -129,6 +138,10 @@ namespace SearchEngine.Core.Matching
             return sets[0].Where(token => sets.Skip(1).All(tokens => tokens.Contains(token)));
         }
 
+        /// <summary>
+        /// Keeps the candidate if it has fewer typos or, with equal typos, a higher boost than the
+        /// one already stored for its token.
+        /// </summary>
         private static void Offer(Dictionary<string, Candidate> candidates, Candidate candidate)
         {
             if (
